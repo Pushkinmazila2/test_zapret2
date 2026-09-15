@@ -3,69 +3,52 @@
 # Ссылка на тестовое видео (любое стабильное видео без ограничений)
 TEST_URL="https://www.youtube.com/watch?v=kJQP7kiw5Fk&list=RDkJQP7kiw5Fk&start_radio=1&pp=ygUKZGVzcGFjaXRvIKAHAQ%3D%3D"
 TEST_QUEUE=2
-TEST_UID=2000
 
-# Ваша 100% рабочая стратегия
-INIT_STRATEGY="--filter-tcp=443 --payload=tls_client_hello --lua-desync=fakeddisorder:pos=midsld:tcp_seq=1000000"
+# Строго ОДНА ваша проверенная стратегия с явным подключением библиотек Lua
+STRATEGY="--lua-init=@/opt/zapret2/lua/zapret-lib.lua --filter-tcp=443 --payload=tls_client_hello --lua-desync=fakeddisorder:pos=midsld:tcp_seq=1000000"
 
-# Вариации вашей стратегии fakeddisorder для поиска максимальной скорости
-STRATEGIES="
---filter-tcp=443 --payload=tls_client_hello --lua-desync=fakeddisorder:pos=midsld:tcp_seq=1000000
---filter-tcp=443 --payload=tls_client_hello --lua-desync=fakeddisorder:pos=midsld:tcp_seq=2000000
---filter-tcp=443 --payload=tls_client_hello --lua-desync=fakeddisorder:pos=1:tcp_seq=1000000
---filter-tcp=443 --payload=tls_client_hello --lua-desync=fakeddisorder:pos=midsld:tcp_seq=1000000 --dpi-desync-fooling=badsum
---filter-tcp=443 --payload=tls_client_hello --lua-desync=fakeddisorder:pos=midsld:tcp_seq=1000000 --dpi-desync-fooling=md5sig
---filter-tcp=443 --payload=tls_client_hello --lua-desync=fakeddisorder:pos=host:tcp_seq=1000000 --dpi-desync-fooling=badsum
-"
+echo "=== СТАРТ ФОКУСНОГО ТЕСТА ВАШЕЙ СТРАТЕГИИ ==="
 
-echo "=== СТАРТ СТАБИЛЬНОГО АВТОТЕСТА ZAPRET2 ==="
-
-# 1. Сбрасываем старое и фиксируем ОДНО правило iptables на весь запуск скрипта
+# 1. Фиксируем сетевое правило в ядре
 iptables -t mangle -F OUTPUT 2>/dev/null
 iptables -t mangle -A OUTPUT -p tcp --dport 443 -j NFQUEUE --queue-num $TEST_QUEUE
 
-# Перебор стратегий
-IFS="
-"
-echo "$STRATEGIES" | while read -r STRATEGY; do
-    [ -z "$STRATEGY" ] && continue
-    
-    echo "----------------------------------------"
-    echo "[*] АКТИВАЦИЯ СТРАТЕГИИ: $STRATEGY"
+echo "[*] ЗАПУСК NFQWS2 С ВАШИМ LUA-ПРОФИЛЕМ..."
 
-    # 2. Запускаем nfqws2. Он тут же подхватывает уже готовую очередь ядра
-    nfqws2 --queue-num=$TEST_QUEUE $STRATEGY > /dev/null 2>&1 &
-    NFQWS_PID=$!
-    
-    # Даем Lua-движку Запрета 2 секунды на полную инициализацию
-    sleep 2
+# 2. Запускаем nfqws2 (теперь он найдет файлы Lua-инициализации!)
+nfqws2 --qnum=$TEST_QUEUE $STRATEGY > /tmp/nfqws_last_error.log 2>&1 &
+NFQWS_PID=$!
 
-    echo "[+] Замер скорости скачивания файла (6 сек)..."
-    # Скачиваем тестовый файл от Google
-    DOWNLOAD_RESULT=$(curl -o /dev/null -s -w "%{http_code},%{speed_download}" --max-time 6 "$TEST_URL")
-    
-    HTTP_CODE=$(echo "$DOWNLOAD_RESULT" | cut -d',' -f1)
-    SPEED_BYTES=$(echo "$DOWNLOAD_RESULT" | cut -d',' -f2)
-    
-    # 3. Гасим nfqws2, освобождая очередь для следующей стратегии
-    kill $NFQWS_PID
-    wait $NFQWS_PID 2>/dev/null
-    sleep 1
+# Даем Lua-скриптам время подгрузиться в память
+sleep 2
 
-    [ -z "$SPEED_BYTES" ] && SPEED_BYTES=0
-    SPEED_KBPS=$((SPEED_BYTES * 8 / 1024))
+# Проверяем, выжил ли процесс
+if ! kill -0 $NFQWS_PID 2>/dev/null; then
+    echo "[-] Критическая ошибка: nfqws2 упал при старте!"
+    echo "    Лог ошибки: $(cat /tmp/nfqws_last_error.log)"
+    iptables -t mangle -F OUTPUT 2>/dev/null
+    exit 1
+fi
 
-    # Вывод результатов
-    if [ "$HTTP_CODE" = "200" ] && [ "$SPEED_KBPS" -gt 2000 ]; then
-        echo "[+] РЕЗУЛЬТАТ: ОТЛИЧНО! HTTP $HTTP_CODE | Скорость: ${SPEED_KBPS} Кбит/с"
-    elif [ "$HTTP_CODE" = "200" ]; then
-        echo "[!] РЕЗУЛЬТАТ: Пробивает, но скорость низкая: ${SPEED_KBPS} Кбит/с"
-    else
-        echo "[-] РЕЗУЛЬТАТ: БЛОКИРОВКА / ТАЙМАУТ (Код: $HTTP_CODE)"
-    fi
-done
+echo "[+] Замер скорости скачивания медиа-файла (6 сек)..."
+DOWNLOAD_RESULT=$(curl -o /dev/null -s -w "%{http_code},%{speed_download}" --max-time 6 "$TEST_URL")
 
-# В самом конце полностью убираем за собой правила из ядра
+HTTP_CODE=$(echo "$DOWNLOAD_RESULT" | cut -d',' -f1)
+SPEED_BYTES=$(echo "$DOWNLOAD_RESULT" | cut -d',' -f2)
+
+# 3. Чистим процессы и ядро
+kill $NFQWS_PID
+wait $NFQWS_PID 2>/dev/null
 iptables -t mangle -F OUTPUT 2>/dev/null
+
+[ -z "$SPEED_BYTES" ] && SPEED_BYTES=0
+SPEED_KBPS=$((SPEED_BYTES * 8 / 1024))
+
+echo "----------------------------------------"
+if [ "$HTTP_CODE" = "200" ]; then
+    echo "[+] УСПЕХ! Ваша Lua-стратегия работает корректно."
+    echo "[+] РЕАЛЬНАЯ СКОРОСТЬ КАНАЛА: ${SPEED_KBPS} Кбит/с"
+else
+    echo "[-] БЛОКИРОВКА ИЛИ СЕТЕВОЙ СБОЙ (HTTP код: $HTTP_CODE)"
+fi
 echo "========================================"
-echo "=== ТЕСТИРОВАНИЕ СТРАТЕГИЙ ЗАВЕРШЕНО ==="
