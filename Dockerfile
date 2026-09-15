@@ -1,6 +1,6 @@
 FROM debian:bookworm-slim
 
-# Устанавливаем зависимости: python3 для yt-dlp, curl/wget для тестов, iptables для ротации трафика
+# Устанавливаем зависимости: python3 для yt-dlp, curl/wget для тестов, iptables для ротации трафикав
 RUN apt-get update && apt-get install -y --no-install-recommends \
     python3 \
     python3-pip \
