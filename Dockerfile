@@ -11,13 +11,19 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Скачиваем последнюю версию yt-dlp напрямую с GitHub
-RUN curl -L https://github.com -o /usr/local/bin/yt-dlp \
+RUN curl -L https://github.com/yt-dlp/yt-dlp -o /usr/local/bin/yt-dlp \
     && chmod a+rx /usr/local/bin/yt-dlp
 
 # Скачиваем бинарник nfqws (Zapret)
 # Примечание: Для полноценного теста скачаем скомпилированный релиз zapret под x86_64
-RUN curl -L https://githubusercontent.com -o /usr/local/bin/nfqws \
-    && chmod a+rx /usr/local/bin/nfqws
+RUN curl -s https://github.com/bol-van/zapret2/releases/latest \
+
+    | curl -sL $(grep -o '"browser_download_url": "[^"]*' | head -n 1 | cut -d'"' -f4) -o /tmp/zapret2.tar.gz \
+    && mkdir -p /tmp/zapret2_unpack \
+    && tar -xzf /tmp/zapret2.tar.gz -C /tmp/zapret2_unpack --strip-components=1 \
+    && cp /tmp/zapret2_unpack/binaries/linux-x86_64/nfqws2 /usr/local/bin/nfqws2 \
+    && chmod a+rx /usr/local/bin/nfqws2 \
+    && rm -rf /tmp/zapret2.tar.gz /tmp/zapret2_unpack
 
 WORKDIR /app
 
