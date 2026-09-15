@@ -16,9 +16,7 @@ RUN curl -L https://github.com/yt-dlp/yt-dlp -o /usr/local/bin/yt-dlp \
 
 # Скачиваем бинарник nfqws (Zapret)
 # Примечание: Для полноценного теста скачаем скомпилированный релиз zapret под x86_64
-RUN curl -s https://github.com/bol-van/zapret2/releases/download/v1.0.5.1/zapret2-v1.0.5.1.tar.gz \
-
-    | curl -sL $(grep -o '"browser_download_url": "[^"]*' | head -n 1 | cut -d'"' -f4) -o /tmp/zapret2.tar.gz \
+RUN curl -sL https://github.com/bol-van/zapret2/releases/download/v1.0.5.1/zapret2-v1.0.5.1.tar.gz -o /tmp/zapret2.tar.gz \
     && mkdir -p /tmp/zapret2_unpack \
     && tar -xzf /tmp/zapret2.tar.gz -C /tmp/zapret2_unpack --strip-components=1 \
     && cp /tmp/zapret2_unpack/binaries/linux-x86_64/nfqws2 /usr/local/bin/nfqws2 \
