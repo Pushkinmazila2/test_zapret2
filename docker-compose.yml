@@ -16,6 +16,3 @@ services:
     sysctls:
       - net.ipv4.ip_forward=1
       - net.ipv4.conf.all.rp_filter=0
-    volumes:
-      # Монтируем текущую папку, чтобы можно было править скрипт автотеста прямо с хоста без пересборки
-      - .:/app
