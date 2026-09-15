@@ -1,0 +1,21 @@
+services:
+  zapret-tester:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: zapret-strategy-tester
+    restart: unless-stopped
+    # Повышенные привилегии для работы iptables и nfqws
+    privileged: true
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    # Включаем форвардинг трафика внутри контейнера
+    sysctls:
+      - net.ipv4.ip_forward=1
+      - net.ipv4.conf.all.rp_filter=0
+    volumes:
+      # Монтируем текущую папку, чтобы можно было править скрипт автотеста прямо с хоста без пересборки
+      - .:/app
