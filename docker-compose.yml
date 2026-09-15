@@ -5,11 +5,6 @@ services:
       dockerfile: Dockerfile
     container_name: zapret-strategy-tester
     restart: unless-stopped
-    # Повышенные привилегии для работы iptables и nfqws
-    privileged: true
-    cap_add:
-      - NET_ADMIN
-      - NET_RAW
     devices:
       - /dev/net/tun:/dev/net/tun
     # Включаем форвардинг трафика внутри контейнера
