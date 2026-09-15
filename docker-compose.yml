@@ -5,6 +5,10 @@ services:
       dockerfile: Dockerfile
     container_name: zapret-strategy-tester
     restart: unless-stopped
+    privileged: true
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
     devices:
       - /dev/net/tun:/dev/net/tun
     # Включаем форвардинг трафика внутри контейнера
