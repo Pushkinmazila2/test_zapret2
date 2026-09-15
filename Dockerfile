@@ -11,7 +11,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Скачиваем последнюю версию yt-dlp напрямую с GitHub
-RUN curl -L https://github.com/yt-dlp/yt-dlp -o /usr/local/bin/yt-dlp \
+RUN curl -L https://github.com/yt-dlp/yt-dlp/releases/download/2026.08.19/yt-dlp -o /usr/local/bin/yt-dlp \
     && chmod a+rx /usr/local/bin/yt-dlp
 
 # Скачиваем бинарник nfqws (Zapret)
