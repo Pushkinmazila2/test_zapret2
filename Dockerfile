@@ -19,6 +19,9 @@ RUN curl -sL https://github.com/bol-van/zapret2/releases/download/v1.0.5.1/zapre
     && tar -xzf /tmp/zapret2.tar.gz -C /tmp/zapret2_unpack --strip-components=1 \
     && cp /tmp/zapret2_unpack/binaries/linux-x86_64/nfqws2 /usr/local/bin/nfqws2 \
     && chmod a+rx /usr/local/bin/nfqws2 \
+    && mkdir -p /opt/zapret2/lua \
+    && cp /tmp/zapret2_unpack/files/fake/zapret-lib.lua /opt/zapret2/lua/ \
+    && cp /tmp/zapret2_unpack/files/fake/zapret-antidpi.lua /opt/zapret2/lua/ \
     && rm -rf /tmp/zapret2.tar.gz /tmp/zapret2_unpack
 
 # 3. Создаем бесправного пользователя для изоляции трафика тестов
